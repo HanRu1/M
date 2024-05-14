@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 
 setup(
-    name='Metrics',  # 包的名称
+    name='metrics',  # 包的名称
     version='0.1.0',  # 包的版本
     author='Your Name',  # 你的名字或者团队名称
     author_email='your.email@example.com',  # 你的邮箱或者团队邮箱
