@@ -8,7 +8,7 @@ setup(
     description='A Python package for medical image metrics and operations',  # 包的简短描述
     long_description=open('README.md').read(),  # 从README.md文件读取更详细的描述
     long_description_content_type='text/markdown',  # 描述内容的格式
-    url='https://github.com/HanRu1/matrics.git',  # 项目的URL，通常是GitHub的URL
+    url='https://github.com/HanRu1/M.git',  # 项目的URL，通常是GitHub的URL
     packages=find_packages(),  # 自动查找所有包和子包
     classifiers=[
         'Development Status :: 3 - Alpha',  # 开发状态，从1（计划）到7（停止）
@@ -19,6 +19,8 @@ setup(
         'Programming Language :: Python :: 3.7',
         'Programming Language :: Python :: 3.8',
         'Programming Language :: Python :: 3.9',
+        'Programming Language :: Python :: 3.10',
+        'Programming Language :: Python :: 3.11',
     ],
     keywords='medical imaging metrics numpy scipy skimage sklearn',  # 关键词
     python_requires='>=3.7',  # 对Python的最低版本要求
