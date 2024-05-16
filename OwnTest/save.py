@@ -26,8 +26,8 @@ import numpy as np
 import SimpleITK as sitk
 
 # own modules
-from logger import Logger
-from exceptions import ImageSavingError
+from .logger import Logger
+from .exceptions import ImageSavingError
 
 # code
 def save(arr, filename, hdr = False, force = True, use_compression = False):

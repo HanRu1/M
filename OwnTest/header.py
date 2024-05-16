@@ -25,7 +25,7 @@ import warnings
 import numpy as np
 
 # own modules
-from logger import Logger
+from .logger import Logger
 
 # code
 def get_voxel_spacing(hdr):

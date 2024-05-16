@@ -27,8 +27,8 @@ import SimpleITK as sitk
 
 # own modules
 from .header import Header
-from logger import Logger
-from exceptions import ImageLoadingError
+from .logger import Logger
+from .exceptions import ImageLoadingError
 
 # code
 def load(image):
