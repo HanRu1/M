@@ -1,5 +1,13 @@
 import numpy
 from scipy.spatial.distance import directed_hausdorff
+from scipy.ndimage import (
+    _ni_support,
+    binary_erosion,
+    distance_transform_edt,
+    find_objects,
+    generate_binary_structure,
+    label,
+)
 from skimage.metrics import structural_similarity as ssim
 from skimage.metrics import peak_signal_noise_ratio as psnr
 from sklearn.metrics import (confusion_matrix, roc_curve, roc_auc_score, matthews_corrcoef)
@@ -120,19 +128,64 @@ def mae(result, reference):
     return numpy.mean(numpy.abs(result - reference))
 
 
+# def hausdorff_distance(result, reference):
+    # #Using scipy for directed Hausdorff distance, assuming 2D arrays
+    # return max(directed_hausdorff(result, reference)[0], directed_hausdorff(reference, result)[0])
+
+
+def __surface_distances(result, reference, voxelspacing=None, connectivity=1):
+    """
+    The distances between the surface voxel of binary objects in result and their
+    nearest partner surface voxel of a binary object in reference.
+    """
+    result = numpy.atleast_1d(result.astype(numpy.bool_))
+    reference = numpy.atleast_1d(reference.astype(numpy.bool_))
+    if voxelspacing is not None:
+        voxelspacing = _ni_support._normalize_sequence(voxelspacing, result.ndim)
+        voxelspacing = numpy.asarray(voxelspacing, dtype=numpy.float64)
+        if not voxelspacing.flags.contiguous:
+            voxelspacing = voxelspacing.copy()
+
+    # binary structure
+    footprint = generate_binary_structure(result.ndim, connectivity)
+
+    # test for emptiness
+    if 0 == numpy.count_nonzero(result):
+        raise RuntimeError(
+            "The first supplied array does not contain any binary object."
+        )
+    if 0 == numpy.count_nonzero(reference):
+        raise RuntimeError(
+            "The second supplied array does not contain any binary object."
+        )
+
+    # extract only 1-pixel border line of objects
+    result_border = result ^ binary_erosion(result, structure=footprint, iterations=1)
+    reference_border = reference ^ binary_erosion(
+        reference, structure=footprint, iterations=1
+    )
+
+    # compute average surface distance
+    # Note: scipys distance transform is calculated only inside the borders of the
+    #       foreground objects, therefore the input has to be reversed
+    dt = distance_transform_edt(~reference_border, sampling=voxelspacing)
+    sds = dt[result_border]
+
+    return sds
+
+
 def hausdorff_distance(result, reference):
-    # Using scipy for directed Hausdorff distance, assuming 2D arrays
-    return max(directed_hausdorff(result, reference)[0], directed_hausdorff(reference, result)[0])
+    hd1 = __surface_distances(result, reference, None, 1).max()
+    hd2 = __surface_distances(reference, result, None, 1).max()
+    hd = max(hd1, hd2)
+    return hd
 
 
 def hausdorff_95(result, reference):
-    # Calculating 95th percentile of the Hausdorff distance
-    distances = []
-    for r in result:
-        distances.append(numpy.min(numpy.linalg.norm(reference - r, axis=1)))
-    for r in reference:
-        distances.append(numpy.min(numpy.linalg.norm(result - r, axis=1)))
-    return numpy.percentile(distances, 95)
+    hd1 = __surface_distances(result, reference, None, 1)
+    hd2 = __surface_distances(reference, result, None, 1)
+    hd95 = numpy.percentile(numpy.hstack((hd1, hd2)), 95)
+    return hd95
 
 
 def calculate_ssim(result, reference):
@@ -233,18 +286,38 @@ def tpr(result, reference):
 #第一次出现的：混淆矩阵，ROC，AUC，误分类率，MCC，FDR，NPV，balanced_accuracy，调和平均
 #上面已经有的：accuracy，precision，recall，f1_score，specificity，FPR，FNR，TPR，TNR，
 def calculate_confusion_matrix(result, reference):
-    result = numpy.atleast_1d(result.astype(numpy.bool_))
-    reference = numpy.atleast_1d(reference.astype(numpy.bool_))
-    return confusion_matrix(reference, result)
+    # 将输入数组展平为一维
+    result_flat = result.ravel()
+    reference_flat = reference.ravel()
+
+    # 确保result和reference是二值数组（0和1）
+    result_flat = numpy.atleast_1d(result_flat.astype(numpy.bool_))
+    reference_flat = numpy.atleast_1d(reference_flat.astype(numpy.bool_))
+
+    cm = confusion_matrix(reference_flat, result_flat)
+    tn, fp, fn, tp = cm.ravel()
+    return tn, fp, fn, tp
 
 
 def roc(result, reference):
-    fpr, tpr, thresholds = roc_curve(reference, result)
+    result_flat = result.ravel()
+    reference_flat = reference.ravel()
+
+    # 确保reference是二值数组（0和1）
+    reference_flat = (reference_flat > 0).astype(int)
+
+    fpr, tpr, thresholds = roc_curve(reference_flat, result_flat)
     return fpr, tpr, thresholds
 
 
 def auc(result, reference):
-    return roc_auc_score(reference, result)
+    # 将输入数组展平为一维
+    result_flat = result.ravel()
+    reference_flat = reference.ravel()
+
+    # 确保reference是二值数组（0和1）
+    reference_flat = (reference_flat > 0).astype(int)
+    return roc_auc_score(reference_flat, result_flat)
 
 
 def error_rate(result, reference):
@@ -252,13 +325,19 @@ def error_rate(result, reference):
 
 
 def mcc(result, reference):
-    result = numpy.atleast_1d(result.astype(numpy.bool_))
-    reference = numpy.atleast_1d(reference.astype(numpy.bool_))
-    return matthews_corrcoef(reference, result)
+    # 将输入数组展平为一维
+    result_flat = result.ravel()
+    reference_flat = reference.ravel()
+
+    # 确保result和reference是二值数组（0和1）
+    result_flat = numpy.atleast_1d(result_flat.astype(numpy.bool_))
+    reference_flat = numpy.atleast_1d(reference_flat.astype(numpy.bool_))
+
+    return matthews_corrcoef(reference_flat, result_flat)
 
 
 def fdr(result, reference):
-    tn, fp, fn, tp = calculate_confusion_matrix(reference, result).ravel()
+    tn, fp, fn, tp = calculate_confusion_matrix(reference, result)
     try:
         fdr = fp / float(fp + tp)
     except ZeroDivisionError:
@@ -267,7 +346,7 @@ def fdr(result, reference):
 
 
 def npv(result, reference):
-    tn, fp, fn, tp = calculate_confusion_matrix(reference, result).ravel()
+    tn, fp, fn, tp = calculate_confusion_matrix(reference, result)
     try:
         npv = tn / float(tn + fn)
     except ZeroDivisionError:
@@ -306,14 +385,23 @@ def mse(result, reference):
 
 
 def mutual_information(result, reference):
-    result = numpy.atleast_1d(result.astype(numpy.bool_))
-    reference = numpy.atleast_1d(reference.astype(numpy.bool_))
-    return mutual_info_score(result, reference)
+    # 将输入数组展平为一维
+    result_flat = result.ravel()
+    reference_flat = reference.ravel()
 
+    # 确保result和reference是二值数组（0和1）
+    result_flat = numpy.atleast_1d(result_flat.astype(numpy.bool_))
+    reference_flat = numpy.atleast_1d(reference_flat.astype(numpy.bool_))
+
+    return mutual_info_score(reference_flat, result_flat)
 
 def normalized_mutual_information(result, reference):
-    result = numpy.atleast_1d(result.astype(numpy.bool_))
-    reference = numpy.atleast_1d(reference.astype(numpy.bool_))
+    # 将输入数组展平为一维
+    result_flat = result.ravel()
+    reference_flat = reference.ravel()
+
+    result = numpy.atleast_1d(result_flat.astype(numpy.bool_))
+    reference = numpy.atleast_1d(reference_flat.astype(numpy.bool_))
     try:
         nmi = normalized_mutual_info_score(result, reference)
     except ZeroDivisionError:
@@ -397,13 +485,23 @@ def estimate_noise(image):
 #第一次出现的：计算体积相似性,计算点到点距离,VIF
 #上面已经有的：mse，psnr，ssim，Dice，Jaccard，Hausdorff，
 def calculate_volume_similarity(result, reference):
-    # 计算体积相似性（Volume Similarity）
+    # 确保输入数组为浮点型，以避免溢出
+    result = numpy.asarray(result, dtype=numpy.float64)
+    reference = numpy.asarray(reference, dtype=numpy.float64)
+
+    # 计算体积
     volA = numpy.sum(result)
     volB = numpy.sum(reference)
+
+    # 处理异常情况
     try:
-        volume_similarity = 1 - numpy.abs(volA - volB) / (volA + volB)
+        if volA + volB == 0:
+            volume_similarity = 0.0
+        else:
+            volume_similarity = 1 - numpy.abs(volA - volB) / (volA + volB)
     except ZeroDivisionError:
         volume_similarity = 0.0  # 当volA和volB都是0时，返回0.0
+
     return volume_similarity
 
 
@@ -419,12 +517,19 @@ def point_to_point_distance(result, reference):
     return distances
 
 
-def calculate_vif(result, reference):
-    result = numpy.atleast_3d(result.astype(numpy.float64))
-    reference = numpy.atleast_3d(reference.astype(numpy.float64))
-    try:
-        vif = vifp(reference, result)
-    except Exception as e:
-        print(f"Error calculating VIF: {e}")
-        vif = 0.0
-    return vif
+# def calculate_vif(result, reference):
+#     # 将输入数据转换为浮点型并确保至少是3维数组
+#     result = numpy.atleast_3d(result.astype(numpy.float64))
+#     reference = numpy.atleast_3d(reference.astype(numpy.float64))
+#
+#     # 检查并清理无效值
+#     result[numpy.isnan(result) | numpy.isinf(result)] = 0
+#     reference[numpy.isnan(reference) | numpy.isinf(reference)] = 0
+#
+#     try:
+#         vif = vifp(reference, result)
+#     except Exception as e:
+#         print(f"Error calculating VIF: {e}")
+#         vif = 0.0
+#
+#     return vif
