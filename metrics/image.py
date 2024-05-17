@@ -24,7 +24,7 @@
 import numpy
 
 # own modules
-from exceptions import ArgumentError
+from .exceptions import ArgumentError
 
 # code
 def mutual_information(i1, i2, bins=256):
