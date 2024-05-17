@@ -41,7 +41,7 @@ class Logger (NativeLogger):
     --------
     Initializing the logger
     
-    >>> from OwnTest.logger import Logger
+    >>> from metrics.logger import Logger
     >>> logger = Logger.getInstance()
     
     Error messages are passed to stdout

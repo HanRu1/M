@@ -9,7 +9,7 @@ with open(os.path.join(current_directory, 'README.md'), encoding='utf-8') as f:
     long_description = f.read()
 
 setup(
-    name='mm',
+    name='metrics',
     version='0.1.0',
     author='Your Name',
     author_email='your.email@example.com',
