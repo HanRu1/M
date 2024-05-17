@@ -60,8 +60,8 @@ def recall(result, reference):
 
 
 def specificity(result, reference):
-    result = numpy.atleast_1d(result.astype(numpy.bool))
-    reference = numpy.atleast_1d(reference.astype(numpy.bool))
+    result = numpy.atleast_1d(result.astype(numpy.bool_))
+    reference = numpy.atleast_1d(reference.astype(numpy.bool_))
     tn = numpy.count_nonzero(~result & ~reference)
     fp = numpy.count_nonzero(result & ~reference)
     try:
@@ -82,8 +82,8 @@ def f1_score(result, reference):
 
 
 def dice_coefficient(result, reference):
-    result = numpy.atleast_1d(result.astype(numpy.bool))
-    reference = numpy.atleast_1d(reference.astype(numpy.bool))
+    result = numpy.atleast_1d(result.astype(numpy.bool_))
+    reference = numpy.atleast_1d(reference.astype(numpy.bool_))
     tp = numpy.count_nonzero(result & reference)
     try:
         dice = 2 * tp / float(numpy.count_nonzero(result) + numpy.count_nonzero(reference))
@@ -93,8 +93,8 @@ def dice_coefficient(result, reference):
 
 
 def iou(result, reference):
-    result = numpy.atleast_1d(result.astype(numpy.bool))
-    reference = numpy.atleast_1d(reference.astype(numpy.bool))
+    result = numpy.atleast_1d(result.astype(numpy.bool_))
+    reference = numpy.atleast_1d(reference.astype(numpy.bool_))
     intersection = numpy.count_nonzero(result & reference)
     union = numpy.count_nonzero(result | reference)
     try:
@@ -162,8 +162,8 @@ def calculate_psnr(result, reference):
 
 
 def cohen_kappa(result, reference):
-    result = numpy.atleast_1d(result.astype(numpy.bool))
-    reference = numpy.atleast_1d(reference.astype(numpy.bool))
+    result = numpy.atleast_1d(result.astype(numpy.bool_))
+    reference = numpy.atleast_1d(reference.astype(numpy.bool_))
     tp = numpy.count_nonzero(result & reference)
     tn = numpy.count_nonzero(~result & ~reference)
     fp = numpy.count_nonzero(result & ~reference)
@@ -182,7 +182,7 @@ def cohen_kappa(result, reference):
 
 def log_loss(result, reference):
     result = numpy.clip(result, 1e-15, 1 - 1e-15)  # To avoid log(0) issue
-    reference = numpy.atleast_1d(reference.astype(numpy.bool))
+    reference = numpy.atleast_1d(reference.astype(numpy.bool_))
     return -numpy.mean(reference * numpy.log(result) + (1 - reference) * numpy.log(1 - result))
 
 
@@ -252,8 +252,8 @@ def error_rate(result, reference):
 
 
 def mcc(result, reference):
-    result = numpy.atleast_1d(result.astype(numpy.bool))
-    reference = numpy.atleast_1d(reference.astype(numpy.bool))
+    result = numpy.atleast_1d(result.astype(numpy.bool_))
+    reference = numpy.atleast_1d(reference.astype(numpy.bool_))
     return matthews_corrcoef(reference, result)
 
 
@@ -306,14 +306,14 @@ def mse(result, reference):
 
 
 def mutual_information(result, reference):
-    result = numpy.atleast_1d(result.astype(numpy.bool))
-    reference = numpy.atleast_1d(reference.astype(numpy.bool))
+    result = numpy.atleast_1d(result.astype(numpy.bool_))
+    reference = numpy.atleast_1d(reference.astype(numpy.bool_))
     return mutual_info_score(result, reference)
 
 
 def normalized_mutual_information(result, reference):
-    result = numpy.atleast_1d(result.astype(numpy.bool))
-    reference = numpy.atleast_1d(reference.astype(numpy.bool))
+    result = numpy.atleast_1d(result.astype(numpy.bool_))
+    reference = numpy.atleast_1d(reference.astype(numpy.bool_))
     try:
         nmi = normalized_mutual_info_score(result, reference)
     except ZeroDivisionError:
