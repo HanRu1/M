@@ -1,5 +1,5 @@
 import numpy
-from scipy.spatial.distance import directed_hausdorff
+from scipy.spatial.distance import directed_hausdorff, cdist
 from scipy.ndimage import (
     _ni_support,
     binary_erosion,
@@ -20,9 +20,9 @@ from sewar.full_ref import vifp
 #accuracy，precision，recall，specificity，f1_score，dice_coefficient，iou，g_mean，
 #mae，hausdorff_distance，hausdorff_95，ssim，ncc，psnr，cohen_kappa，log_loss，
 #fpr，fnr，voe，rvd，sensitivity，jaccard_coefficient，tnr，tpr
-def accuracy(result, reference):
-    result = numpy.atleast_1d(result.astype(numpy.bool_))
-    reference = numpy.atleast_1d(reference.astype(numpy.bool_))
+def accuracy(result, reference, target_value):
+    result = numpy.atleast_1d(result == target_value)
+    reference = numpy.atleast_1d(reference == target_value)
 
     tp = numpy.count_nonzero(result & reference)
     fp = numpy.count_nonzero(result & ~reference)
@@ -37,9 +37,9 @@ def accuracy(result, reference):
     return accuracy
 
 
-def precision(result, reference):
-    result = numpy.atleast_1d(result.astype(numpy.bool_))
-    reference = numpy.atleast_1d(reference.astype(numpy.bool_))
+def precision(result, reference, target_value):
+    result = numpy.atleast_1d(result == target_value)
+    reference = numpy.atleast_1d(reference == target_value)
 
     tp = numpy.count_nonzero(result & reference)
     fp = numpy.count_nonzero(result & ~reference)
@@ -52,9 +52,9 @@ def precision(result, reference):
     return precision
 
 
-def recall(result, reference):
-    result = numpy.atleast_1d(result.astype(numpy.bool_))
-    reference = numpy.atleast_1d(reference.astype(numpy.bool_))
+def recall(result, reference, target_value):
+    result = numpy.atleast_1d(result == target_value)
+    reference = numpy.atleast_1d(reference == target_value)
 
     tp = numpy.count_nonzero(result & reference)
     fn = numpy.count_nonzero(~result & reference)
@@ -67,9 +67,9 @@ def recall(result, reference):
     return recall
 
 
-def specificity(result, reference):
-    result = numpy.atleast_1d(result.astype(numpy.bool_))
-    reference = numpy.atleast_1d(reference.astype(numpy.bool_))
+def specificity(result, reference, target_value):
+    result = numpy.atleast_1d(result == target_value)
+    reference = numpy.atleast_1d(reference == target_value)
     tn = numpy.count_nonzero(~result & ~reference)
     fp = numpy.count_nonzero(result & ~reference)
     try:
@@ -79,9 +79,9 @@ def specificity(result, reference):
     return specificity
 
 
-def f1_score(result, reference):
-    p = precision(result, reference)
-    r = recall(result, reference)
+def f1_score(result, reference, target_value):
+    p = precision(result, reference, target_value)
+    r = recall(result, reference, target_value)
     try:
         f1 = 2 * (p * r) / (p + r)
     except ZeroDivisionError:
@@ -89,9 +89,9 @@ def f1_score(result, reference):
     return f1
 
 
-def dice_coefficient(result, reference):
-    result = numpy.atleast_1d(result.astype(numpy.bool_))
-    reference = numpy.atleast_1d(reference.astype(numpy.bool_))
+def dice_coefficient(result, reference, target_value):
+    result = numpy.atleast_1d(result == target_value)
+    reference = numpy.atleast_1d(reference == target_value)
     tp = numpy.count_nonzero(result & reference)
     try:
         dice = 2 * tp / float(numpy.count_nonzero(result) + numpy.count_nonzero(reference))
@@ -100,9 +100,9 @@ def dice_coefficient(result, reference):
     return dice
 
 
-def iou(result, reference):
-    result = numpy.atleast_1d(result.astype(numpy.bool_))
-    reference = numpy.atleast_1d(reference.astype(numpy.bool_))
+def iou(result, reference, target_value):
+    result = numpy.atleast_1d(result == target_value)
+    reference = numpy.atleast_1d(reference == target_value)
     intersection = numpy.count_nonzero(result & reference)
     union = numpy.count_nonzero(result | reference)
     try:
@@ -112,9 +112,9 @@ def iou(result, reference):
     return iou
 
 
-def g_mean(result, reference):
-    rec = recall(result, reference)
-    spec = specificity(result, reference)
+def g_mean(result, reference, target_value):
+    rec = recall(result, reference, target_value)
+    spec = specificity(result, reference, target_value)
     try:
         gmean = numpy.sqrt(rec * spec)
     except ZeroDivisionError:
@@ -122,79 +122,101 @@ def g_mean(result, reference):
     return gmean
 
 
-def mae(result, reference):
-    result = numpy.atleast_1d(result.astype(numpy.float32))
-    reference = numpy.atleast_1d(reference.astype(numpy.float32))
+def mae(result, reference, target_value):
+    result = numpy.atleast_1d(result == target_value)
+    reference = numpy.atleast_1d(reference == target_value)
     return numpy.mean(numpy.abs(result - reference))
 
 
-# def hausdorff_distance(result, reference):
-    # #Using scipy for directed Hausdorff distance, assuming 2D arrays
-    # return max(directed_hausdorff(result, reference)[0], directed_hausdorff(reference, result)[0])
+def hausdorff_distance(result, reference, target_value):
+    result = numpy.atleast_1d(result == target_value)
+    reference = numpy.atleast_1d(reference == target_value)
+    # 确保输入为数值类型（0和1）
+    result = result.astype(numpy.int32)
+    reference = reference.astype(numpy.int32)
 
+    # 获取结果和参考中的前景（即像素值为1）的点集
+    result_points = numpy.argwhere(result == 1)
+    reference_points = numpy.argwhere(reference == 1)
 
-def __surface_distances(result, reference, voxelspacing=None, connectivity=1):
-    """
-    The distances between the surface voxel of binary objects in result and their
-    nearest partner surface voxel of a binary object in reference.
-    """
-    result = numpy.atleast_1d(result.astype(numpy.bool_))
-    reference = numpy.atleast_1d(reference.astype(numpy.bool_))
-    if voxelspacing is not None:
-        voxelspacing = _ni_support._normalize_sequence(voxelspacing, result.ndim)
-        voxelspacing = numpy.asarray(voxelspacing, dtype=numpy.float64)
-        if not voxelspacing.flags.contiguous:
-            voxelspacing = voxelspacing.copy()
+    # 计算双向的 Hausdorff Distance
+    forward_hd = directed_hausdorff(result_points, reference_points)[0]
+    backward_hd = directed_hausdorff(reference_points, result_points)[0]
 
-    # binary structure
-    footprint = generate_binary_structure(result.ndim, connectivity)
-
-    # test for emptiness
-    if 0 == numpy.count_nonzero(result):
-        raise RuntimeError(
-            "The first supplied array does not contain any binary object."
-        )
-    if 0 == numpy.count_nonzero(reference):
-        raise RuntimeError(
-            "The second supplied array does not contain any binary object."
-        )
-
-    # extract only 1-pixel border line of objects
-    result_border = result ^ binary_erosion(result, structure=footprint, iterations=1)
-    reference_border = reference ^ binary_erosion(
-        reference, structure=footprint, iterations=1
-    )
-
-    # compute average surface distance
-    # Note: scipys distance transform is calculated only inside the borders of the
-    #       foreground objects, therefore the input has to be reversed
-    dt = distance_transform_edt(~reference_border, sampling=voxelspacing)
-    sds = dt[result_border]
-
-    return sds
-
-
-def hausdorff_distance(result, reference):
-    hd1 = __surface_distances(result, reference, None, 1).max()
-    hd2 = __surface_distances(reference, result, None, 1).max()
-    hd = max(hd1, hd2)
+    # Hausdorff Distance 是双向距离的最大值
+    hd = max(forward_hd, backward_hd)
     return hd
 
 
-def hausdorff_95(result, reference):
-    hd1 = __surface_distances(result, reference, None, 1)
-    hd2 = __surface_distances(reference, result, None, 1)
-    hd95 = numpy.percentile(numpy.hstack((hd1, hd2)), 95)
-    return hd95
+def hausdorff_95(result, reference, slice_size, target_value):
+    """
+    计算二值图像的分片 Hausdorff Distance 并合并计算 95th Percentile Hausdorff Distance (95HD)
+
+    参数:
+    result (numpy.ndarray): 二值图像的分割结果
+    reference (numpy.ndarray): 二值图像的参考（真值）
+    slice_size (tuple): 切片的大小，形如 (slice_height, slice_width)
+    percentile (float): 百分位数，默认是95
+
+    返回:
+    float: 95th Percentile Hausdorff Distance
+    """
+    result = numpy.atleast_1d(result == target_value)
+    reference = numpy.atleast_1d(reference == target_value)
+    result = result.astype(numpy.int32)
+    reference = reference.astype(numpy.int32)
+    def calculate_slice_hd(result_slice, reference_slice):
+        """
+        计算单个切片的 Hausdorff Distance
+        """
+        result_points = numpy.argwhere(result_slice == 1)
+        reference_points = numpy.argwhere(reference_slice == 1)
+
+        if len(result_points) == 0 or len(reference_points) == 0:
+            return [], []  # 如果某个切片没有前景点，返回无穷大
+
+        distances_result_to_reference = cdist(result_points, reference_points)
+        distances_reference_to_result = cdist(reference_points, result_points)
+
+        min_distances_result_to_reference = numpy.min(distances_result_to_reference, axis=1)
+        min_distances_reference_to_result = numpy.min(distances_reference_to_result, axis=1)
+        # print(f"min_distances_result_to_reference: {min_distances_result_to_reference}")
+        # print(f"min_distances_reference_to_result: {min_distances_reference_to_result}")
+
+        # 分割数组成多个切片
+        return min_distances_result_to_reference, min_distances_reference_to_result
+
+    # 分割数组成多个切片
+    slice_height, slice_width = slice_size
+    h, w = result.shape[:2]
+    hd_distances = []
+
+    for i in range(0, h, slice_height):
+        for j in range(0, w, slice_width):
+            result_slice = result[i:i + slice_height, j:j + slice_width]
+            reference_slice = reference[i:i + slice_height, j:j + slice_width]
+
+            if result_slice.size == 0 or reference_slice.size == 0:
+                continue
+
+            min_distances_result_to_reference, min_distances_reference_to_result = calculate_slice_hd(result_slice, reference_slice)
+            hd_distances.extend(min_distances_result_to_reference)
+            hd_distances.extend(min_distances_reference_to_result)
+
+    # 计算第 percentile 百分位数距离
+    hd_95 = numpy.percentile(hd_distances, 95)
+    return hd_95
 
 
-def calculate_ssim(result, reference):
+def calculate_ssim(result, reference, target_value):
+    result = numpy.atleast_1d(result == target_value)
+    reference = numpy.atleast_1d(reference == target_value)
     return ssim(result, reference)
 
 
-def ncc(result, reference):
-    result = numpy.atleast_1d(result.astype(numpy.float64))
-    reference = numpy.atleast_1d(reference.astype(numpy.float64))
+def ncc(result, reference, target_value):
+    result = numpy.atleast_1d(result == target_value)
+    reference = numpy.atleast_1d(reference == target_value)
 
     mean_result = numpy.mean(result)
     mean_reference = numpy.mean(reference)
@@ -210,13 +232,15 @@ def ncc(result, reference):
     return ncc_value
 
 
-def calculate_psnr(result, reference):
+def calculate_psnr(result, reference, target_value):
+    result = numpy.atleast_1d(result == target_value)
+    reference = numpy.atleast_1d(reference == target_value)
     return psnr(reference, result)
 
 
-def cohen_kappa(result, reference):
-    result = numpy.atleast_1d(result.astype(numpy.bool_))
-    reference = numpy.atleast_1d(reference.astype(numpy.bool_))
+def cohen_kappa(result, reference, target_value):
+    result = numpy.atleast_1d(result == target_value)
+    reference = numpy.atleast_1d(reference == target_value)
     tp = numpy.count_nonzero(result & reference)
     tn = numpy.count_nonzero(~result & ~reference)
     fp = numpy.count_nonzero(result & ~reference)
@@ -233,21 +257,25 @@ def cohen_kappa(result, reference):
     return kappa
 
 
-def log_loss(result, reference):
+def log_loss(result, reference, target_value):
+    result = numpy.atleast_1d(result == target_value)
+    reference = numpy.atleast_1d(reference == target_value)
     result = numpy.clip(result, 1e-15, 1 - 1e-15)  # To avoid log(0) issue
     reference = numpy.atleast_1d(reference.astype(numpy.bool_))
     return -numpy.mean(reference * numpy.log(result) + (1 - reference) * numpy.log(1 - result))
 
 
-def fpr(result, reference):
-    return 1 - specificity(result, reference)
+def fpr(result, reference, target_value):
+    return 1 - specificity(result, reference, target_value)
 
 
-def fnr(result, reference):
-    return 1 - recall(result, reference)
+def fnr(result, reference, target_value):
+    return 1 - recall(result, reference, target_value)
 
 
-def voe(result, reference):
+def voe(result, reference, target_value):
+    result = numpy.atleast_1d(result == target_value)
+    reference = numpy.atleast_1d(reference == target_value)
     intersection = numpy.count_nonzero(result & reference)
     union = numpy.count_nonzero(result | reference)
     try:
@@ -257,7 +285,9 @@ def voe(result, reference):
     return voe
 
 
-def rvd(result, reference):
+def rvd(result, reference, target_value):
+    result = numpy.atleast_1d(result == target_value)
+    reference = numpy.atleast_1d(reference == target_value)
     vol_diff = numpy.count_nonzero(result) - numpy.count_nonzero(reference)
     try:
         rvd = vol_diff / float(numpy.count_nonzero(reference))
@@ -266,78 +296,75 @@ def rvd(result, reference):
     return rvd
 
 
-def sensitivity(result, reference):
-    return recall(result, reference)
+def sensitivity(result, reference, target_value):
+    return recall(result, reference, target_value)
 
 
-def jaccard_coefficient(result, reference):
-    return iou(result, reference)
+def jaccard_coefficient(result, reference, target_value):
+    return iou(result, reference, target_value)
 
 
-def tnr(result, reference):
-    return specificity(result, reference)
+def tnr(result, reference, target_value):
+    return specificity(result, reference, target_value)
 
 
-def tpr(result, reference):
-    return recall(result, reference)
+def tpr(result, reference, target_value):
+    return recall(result, reference, target_value)
 
 
 #分类
 #第一次出现的：混淆矩阵，ROC，AUC，误分类率，MCC，FDR，NPV，balanced_accuracy，调和平均
 #上面已经有的：accuracy，precision，recall，f1_score，specificity，FPR，FNR，TPR，TNR，
-def calculate_confusion_matrix(result, reference):
+def calculate_confusion_matrix(result, reference, target_value):
+    # 确保result和reference是二值数组
+    result = numpy.atleast_1d(result == target_value)
+    reference = numpy.atleast_1d(reference == target_value)
     # 将输入数组展平为一维
     result_flat = result.ravel()
     reference_flat = reference.ravel()
-
-    # 确保result和reference是二值数组（0和1）
-    result_flat = numpy.atleast_1d(result_flat.astype(numpy.bool_))
-    reference_flat = numpy.atleast_1d(reference_flat.astype(numpy.bool_))
 
     cm = confusion_matrix(reference_flat, result_flat)
     tn, fp, fn, tp = cm.ravel()
     return tn, fp, fn, tp
 
 
-def roc(result, reference):
+def roc(result, reference, target_value):
+    result = numpy.atleast_1d(result == target_value)
+    reference = numpy.atleast_1d(reference == target_value)
     result_flat = result.ravel()
     reference_flat = reference.ravel()
-
-    # 确保reference是二值数组（0和1）
-    reference_flat = (reference_flat > 0).astype(int)
 
     fpr, tpr, thresholds = roc_curve(reference_flat, result_flat)
     return fpr, tpr, thresholds
 
 
-def auc(result, reference):
+def auc(result, reference, target_value):
+    result = numpy.atleast_1d(result == target_value)
+    reference = numpy.atleast_1d(reference == target_value)
     # 将输入数组展平为一维
     result_flat = result.ravel()
     reference_flat = reference.ravel()
 
-    # 确保reference是二值数组（0和1）
-    reference_flat = (reference_flat > 0).astype(int)
     return roc_auc_score(reference_flat, result_flat)
 
 
-def error_rate(result, reference):
-    return 1 - accuracy(result, reference)
+def error_rate(result, reference, target_value):
+    return 1 - accuracy(result, reference, target_value)
 
 
-def mcc(result, reference):
+def mcc(result, reference, target_value):
+    # 确保result和reference是二值数组
+    result = numpy.atleast_1d(result == target_value)
+    reference = numpy.atleast_1d(reference == target_value)
     # 将输入数组展平为一维
     result_flat = result.ravel()
     reference_flat = reference.ravel()
-
-    # 确保result和reference是二值数组（0和1）
-    result_flat = numpy.atleast_1d(result_flat.astype(numpy.bool_))
-    reference_flat = numpy.atleast_1d(reference_flat.astype(numpy.bool_))
 
     return matthews_corrcoef(reference_flat, result_flat)
 
 
-def fdr(result, reference):
-    tn, fp, fn, tp = calculate_confusion_matrix(reference, result)
+def fdr(result, reference, target_value):
+    tn, fp, fn, tp = calculate_confusion_matrix(reference, result, target_value)
     try:
         fdr = fp / float(fp + tp)
     except ZeroDivisionError:
@@ -345,8 +372,8 @@ def fdr(result, reference):
     return fdr
 
 
-def npv(result, reference):
-    tn, fp, fn, tp = calculate_confusion_matrix(reference, result)
+def npv(result, reference, target_value):
+    tn, fp, fn, tp = calculate_confusion_matrix(reference, result, target_value)
     try:
         npv = tn / float(tn + fn)
     except ZeroDivisionError:
@@ -354,18 +381,18 @@ def npv(result, reference):
     return npv
 
 
-def balanced_accuracy(result, reference):
-    return (tpr(result, reference) + tnr(result, reference)) / 2
+def balanced_accuracy(result, reference, target_value):
+    return (tpr(result, reference, target_value) + tnr(result, reference, target_value)) / 2
 
 
-def harmonic_mean_accuracy(result, reference):
-    """
-    计算调和平均（Harmonic Mean of Class-wise Accuracy）。
-    """
-    from scipy.stats import hmean
-    unique_labels = numpy.unique(reference)
-    accuracies = [accuracy(result[reference==label], reference[reference==label]) for label in unique_labels]
-    return hmean(accuracies)
+# def harmonic_mean_accuracy(result, reference):
+#     """
+#     计算调和平均（Harmonic Mean of Class-wise Accuracy）。
+#     """
+#     from scipy.stats import hmean
+#     unique_labels = numpy.unique(reference)
+#     accuracies = [accuracy(result[reference==label], reference[reference==label]) for label in unique_labels]
+#     return hmean(accuracies)
 
 #检测
 #第一次出现的：无
@@ -377,31 +404,33 @@ def harmonic_mean_accuracy(result, reference):
 #上面已经有的：mae，ssim，Dice，Jaccard，Hausdorff，psnr，NCC，
 
 
-def mse(result, reference):
-    result = numpy.atleast_1d(result.astype(numpy.float32))
-    reference = numpy.atleast_1d(reference.astype(numpy.float32))
+def mse(result, reference, target_value):
+    result = numpy.atleast_1d(result == target_value)
+    reference = numpy.atleast_1d(reference == target_value)
+    result = result.astype(numpy.int32)
+    reference = reference.astype(numpy.int32)
 
     return numpy.mean((result - reference) ** 2)
 
 
-def mutual_information(result, reference):
+def mutual_information(result, reference, target_value):
     # 将输入数组展平为一维
     result_flat = result.ravel()
     reference_flat = reference.ravel()
 
     # 确保result和reference是二值数组（0和1）
-    result_flat = numpy.atleast_1d(result_flat.astype(numpy.bool_))
-    reference_flat = numpy.atleast_1d(reference_flat.astype(numpy.bool_))
+    result_flat = numpy.atleast_1d(result_flat == target_value)
+    reference_flat = numpy.atleast_1d(reference_flat == target_value)
 
     return mutual_info_score(reference_flat, result_flat)
 
-def normalized_mutual_information(result, reference):
+def normalized_mutual_information(result, reference, target_value):
     # 将输入数组展平为一维
     result_flat = result.ravel()
     reference_flat = reference.ravel()
 
-    result = numpy.atleast_1d(result_flat.astype(numpy.bool_))
-    reference = numpy.atleast_1d(reference_flat.astype(numpy.bool_))
+    result = numpy.atleast_1d(result_flat == target_value)
+    reference = numpy.atleast_1d(reference_flat == target_value)
     try:
         nmi = normalized_mutual_info_score(result, reference)
     except ZeroDivisionError:
@@ -409,9 +438,9 @@ def normalized_mutual_information(result, reference):
     return nmi
 
 
-def correlation_coefficient(result, reference):
-    result = numpy.atleast_1d(result.astype(numpy.float32))
-    reference = numpy.atleast_1d(reference.astype(numpy.float32))
+def correlation_coefficient(result, reference, target_value):
+    result = numpy.atleast_1d(result == target_value)
+    reference = numpy.atleast_1d(reference == target_value)
     # 计算均值
     mean_x = numpy.mean(result)
     mean_y = numpy.mean(reference)
@@ -430,9 +459,9 @@ def correlation_coefficient(result, reference):
 #上面已经有的：mse，psnr，ssim，cc
 
 
-def cross_entropy(result, reference):
-    result = numpy.atleast_1d(result.astype(numpy.float32))
-    reference = numpy.atleast_1d(reference.astype(numpy.float32))
+def cross_entropy(result, reference, target_value):
+    result = numpy.atleast_1d(result == target_value)
+    reference = numpy.atleast_1d(reference == target_value)
 
     result = numpy.clip(result, 1e-15, 1 - 1e-15)
 
