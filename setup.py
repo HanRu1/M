@@ -40,6 +40,9 @@ setup(
         'scikit-image',
         'scikit-learn',
         'sewar',
+        'torch',
+        'torchvision',
+        'nibabel',
     ],
     include_package_data=True,
     zip_safe=False
