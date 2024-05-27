@@ -53,5 +53,5 @@ This repository contains a demo for image evaluation metrics.
 
 You can run the demo directly in Google Colab by clicking the link below:
 
-[![Open In Colab](https://colab.research.google.com/drive/16DLfxqDoiTjslmxODYxyvW4yPDtbL4Ew?usp=sharing)](你的Colab分享链接)
+[![Open In Colab](https://colab.research.google.com/drive/16DLfxqDoiTjslmxODYxyvW4yPDtbL4Ew%3Fusp%3Dsharing)](你的Colab分享链接)
 
