@@ -1,5 +1,5 @@
-简单说明
-=====
+# 简单说明
+
 这是一个用于评估医学图像任务的工具包<br>
 medpy相关的评估指标在metrics/binary.py<br>
 在medpy包的基础上，我们进行了补充，在metrics/metrics_all.py
@@ -11,8 +11,8 @@ mse,MI,NMI,CC, 交叉熵, FID
 <br>
 我们保留了medpy中处理输入图像的相关部分，在load.py中<br>
 
-支持的图像文件格式
-----
+## 支持的图像文件格式
+
 医疗格式：<br>
 ITK MetaImage (.mha/.raw, .mhd)<br>
 NIfTI (.nia, .nii, .nii.gz, .hdr, .img, .img.gz)<br>
@@ -35,25 +35,29 @@ Windows bitmap (.bmp, .BMP)<br>
 Hierarchical Data Format (HDF5) (.h5 , .hdf5 , .he5)<br>
 MSX-DOS Screen-x (.ge4, .ge5)<br>
 
-返回类型
------
+## 返回类型
 
 图像数据：以 NumPy 数组的形式返回，数据的维度顺序为 x, y, z, c。<br>
 <br>头信息：返回 Header 对象，包含图像的元数据。
 
-错误处理
-----
+## 错误处理
+
 如果图像文件不存在，抛出 ImageLoadingError 异常.
 
-# My Project
-
-This repository contains a demo for image evaluation metrics.
 
 ## Colab Demo
 
 You can run the demo directly in Google Colab by clicking the link below:
 
-[![Open 
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/16DLfxqDoiTjslmxODYxyvW4yPDtbL4Ew?usp=sharing)
 
 Or use this direct link: https://colab.research.google.com/drive/16DLfxqDoiTjslmxODYxyvW4yPDtbL4Ew?usp=sharing
+
+## Installation
+The code requires `python>=3.8`, as well as `pytorch` and `torchvision`. Please follow the instructions [here](https://pytorch.org/get-started/locally/) to install both PyTorch and TorchVision dependencies. Installing both PyTorch and TorchVision with CUDA support is strongly recommended.
+
+You can use this package by 
+
+```
+pip install git+https://github.com/HanRu1/M.git
+```
